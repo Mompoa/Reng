@@ -70,7 +70,7 @@ def checkout(pid: str):
                     "name": product["name"],
                     "quantity": 1,
                 }],
-                "payment_method_types": ["gcash", "paymaya", "card"],
+                "payment_method_types": ["gcash", "paymaya", "qrph", "card"],
                 "success_url": f"{BASE_URL}/success?order={order_id}",
                 "cancel_url": f"{BASE_URL}/cancel?order={order_id}",
                 "description": f"Order {order_id}: {product['name']}",
