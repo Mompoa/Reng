@@ -15,16 +15,25 @@ ADMIN_KEY = os.getenv("ADMIN_KEY", "")
 # Server-side lang ang key na ito (service_role / secret key). Huwag ilagay sa HTML.
 supabase = create_client(os.environ["SUPABASE_URL"], os.environ["SUPABASE_KEY"])
 
-# Dapat tugma sa PRODUCTS sa index.html
+# Dapat tugma ang id/name/price sa PRODUCTS sa index.html
+# Ang file_url ay HINDI ilalagay sa HTML. Server lang ang may alam nito.
 PRODUCTS = {
-    "1": {"name": "Reviewer Pack", "price": 1.00},
-    "2": {"name": "Android App Template", "price": 1.00},
-    "3": {"name": "Logo Design", "price": 1.00},
+    "1": {"name": "Reviewer Pack", "price": 1.00,
+          "file_url": "https://drive.google.com/file/d/1EICPw7hHSaIuXDZN2pIDI9yJ2uSV3GES/view?usp=drivesdk"},
+    "2": {"name": "Android App Template", "price": 1.00,
+          "file_url": "https://drive.google.com/file/d/1EICPw7hHSaIuXDZN2pIDI9yJ2uSV3GES/view?usp=drivesdk"},
+    "3": {"name": "Logo Design", "price": 1.00,
+          "file_url": "https://drive.google.com/file/d/1EICPw7hHSaIuXDZN2pIDI9yJ2uSV3GES/view?usp=drivesdk"},
 }
 
 
 def now():
     return datetime.now(timezone.utc).isoformat(timespec="seconds")
+
+
+def clean_id(value: str) -> str:
+    # letters, numbers, - at _ lang ang pinapayagan
+    return "".join(c for c in value if c.isalnum() or c in "-_")
 
 
 def get_order(order_id: str):
@@ -52,7 +61,7 @@ def checkout(pid: str):
         raise HTTPException(404, "Product not found")
 
     amount = int(round(product["price"] * 100))  # centavos
-    order_id = secrets.token_urlsafe(8)
+    order_id = secrets.token_urlsafe(16)
 
     supabase.table("orders").insert({
         "id": order_id,
@@ -101,12 +110,33 @@ def order_status(order_id: str):
     return {"status": row["status"]}
 
 
+@app.get("/download/{order_id}")
+def download(order_id: str):
+    row = get_order(order_id)
+    if not row:
+        raise HTTPException(404, "Not found")
+    if row["status"] != "paid":
+        raise HTTPException(403, "Hindi pa bayad ang order na ito.")
+    product = PRODUCTS.get(row["product_id"])
+    if not product or not product.get("file_url"):
+        raise HTTPException(404, "Walang file para sa produktong ito.")
+    return RedirectResponse(product["file_url"])
+
+
 @app.get("/success", response_class=HTMLResponse)
 def success(order: str = ""):
+    order = clean_id(order)
     return f"""<!DOCTYPE html><html><head><meta name="viewport" content="width=device-width,initial-scale=1"></head>
 <body style="font-family:sans-serif;text-align:center;padding:40px">
 <h2 id="msg">Pinoproseso ang bayad mo...</h2>
-<p>Order: {order}</p><a href="/">Balik</a>
+<p>Order: {order}</p>
+<p id="dl" hidden>
+  <a href="/download/{order}"
+     style="display:inline-block;background:#0b6bcb;color:#fff;padding:14px 22px;border-radius:10px;text-decoration:none;font-weight:bold">
+     I-download ang binili mo
+  </a>
+</p>
+<p><a href="/">Balik</a></p>
 <script>
 let tries = 0;
 async function check() {{
@@ -115,6 +145,7 @@ async function check() {{
     const d = await r.json();
     if (d.status === "paid") {{
       document.getElementById("msg").textContent = "Bayad na! Salamat.";
+      document.getElementById("dl").hidden = false;
       return;
     }}
   }} catch (e) {{}}
@@ -127,6 +158,7 @@ check();
 
 @app.get("/cancel", response_class=HTMLResponse)
 def cancel(order: str = ""):
+    order = clean_id(order)
     supabase.table("orders").update({"status": "cancelled"}) \
         .eq("id", order).eq("status", "pending").execute()
     return "<h2>Na-cancel ang bayad.</h2><a href='/'>Balik</a>"
@@ -165,7 +197,6 @@ async def webhook(request: Request):
 
         if res.data:
             print("PAID:", order_id, session_id)
-            # TODO: dito mo ipadala ang product / email / i-unlock ang download
 
     return {"ok": True}
 
@@ -186,4 +217,4 @@ def orders(key: str = ""):
         "<h2>Orders</h2><table border=1 cellpadding=6>"
         "<tr><th>ID</th><th>Product</th><th>Amount</th><th>Status</th><th>Created</th><th>Paid</th></tr>"
         f"{body}</table>"
-    )
+)
