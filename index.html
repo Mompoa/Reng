@@ -43,7 +43,7 @@ dialog h2{margin:0 0 2px;font-size:1.25rem}
 <body>
 <main>
   <h1>Tindahan</h1>
-  <p class="sub">bayaran gamit ang GCash, Maya, o card.</p>
+  <p class="sub">bayaran gamit ang QRPH-GCash, Maya, o card.</p>
   <div id="list"></div>
   <p class="note" id="mode"></p>
 </main>
@@ -54,6 +54,7 @@ dialog h2{margin:0 0 2px;font-size:1.25rem}
     <p class="total" id="ptotal"></p>
     <button class="opt" data-m="gcash">GCash</button>
     <button class="opt" data-m="paymaya">Maya</button>
+    <button class="opt" data-m="qrph">QR Ph</button>
     <button class="opt" data-m="card">Card (Visa / Mastercard)</button>
     <button class="link" id="cancel">Kanselahin</button>
   </div>
@@ -78,9 +79,9 @@ const API_URL = "";                // hal. "https://site-mo.onrender.com"
 // Sa LIVE mode: ire-redirect sa  API_URL + "/checkout/<id>"  (ang FastAPI route na ginawa natin)
 // Huwag kailanman ilagay ang secret key dito. Sa server lang iyon.
 const PRODUCTS = [
-  {id:"1", icon:"📚", name:"Reviewer Pack", desc:"PDF, 120 pages", price:200.00},
-  {id:"2", icon:"📱", name:"Android App Template", desc:"Sketchware project", price:200.00},
-  {id:"3", icon:"🎨", name:"Logo Design", desc:"2 revisions", price:200.00}
+  {id:"1", icon:"📚", name:"Reviewer Pack", desc:"PDF, 120 pages", price:1.00},
+  {id:"2", icon:"📱", name:"Android App Template", desc:"Sketchware project", price:1.00},
+  {id:"3", icon:"🎨", name:"Logo Design", desc:"2 revisions", price:1.00}
 ];
 const peso = n => "₱" + n.toLocaleString("en-PH",{minimumFractionDigits:2});
 const $ = id => document.getElementById(id);
