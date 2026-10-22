@@ -17,9 +17,9 @@ supabase = create_client(os.environ["SUPABASE_URL"], os.environ["SUPABASE_KEY"])
 
 # Dapat tugma sa PRODUCTS sa index.html
 PRODUCTS = {
-    "1": {"name": "Reviewer Pack", "price": 200.00},
-    "2": {"name": "Android App Template", "price": 200.00},
-    "3": {"name": "Logo Design", "price": 200.00},
+    "1": {"name": "Reviewer Pack", "price": 1.00},
+    "2": {"name": "Android App Template", "price": 1.00},
+    "3": {"name": "Logo Design", "price": 1.00},
 }
 
 
