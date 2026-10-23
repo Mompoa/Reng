@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="fil">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Tindahan</title>
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;600;800&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#eef4f7;--surface:#fff;--ink:#10263a;--muted:#5b6f80;--line:#d3e0e8;--accent:#0b6bcb;--accent-ink:#fff;--err:#c0392b;--badge:#10263a;--badge-ink:#fff;
+box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root{--bg:#0c1a26;--surface:#142636;--ink:#e8f1f7;--muted:#93a7b6;--line:#274055;--accent:#4a9bf0;--accent-ink:#06121c;--err:#ff8a7a;--badge:#e8f1f7;--badge-ink:#0c1a26}}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:Sora,system-ui,-apple-system,"Segoe UI",sans-serif;line-height:1.5}
+main{max-width:720px;margin:0 auto;padding:28px 18px 48px}
+h1{font-size:2rem;font-weight:800;letter-spacing:-.02em;margin:0 0 4px}
+.sub{color:var(--muted);margin:0 0 24px}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:14px}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:14px;overflow:hidden;display:flex;flex-direction:column;position:relative}
+.card img,.card .ph{width:100%;aspect-ratio:1;object-fit:cover;background:var(--bg)}
+.card .ph{display:grid;place-items:center;font-size:3rem}
+.card.out img,.card.out .ph{filter:grayscale(1);opacity:.55}
+.badge{position:absolute;top:10px;left:10px;background:var(--badge);color:var(--badge-ink);font-weight:800;font-size:.75rem;letter-spacing:.06em;padding:4px 10px;border-radius:99px}
+.card .body{padding:12px;display:flex;flex-direction:column;gap:4px;flex:1}
+.card b{word-break:break-word}.card span.d{color:var(--muted);font-size:.85rem;flex:1;word-break:break-word}
+.price{font-weight:800;font-size:1.1rem}
+.left{color:var(--muted);font-size:.8rem}
+button{font:inherit;cursor:pointer}
+.buy{background:var(--accent);color:var(--accent-ink);border:0;border-radius:10px;padding:10px 16px;font-weight:600;width:100%}
+.buy:disabled{opacity:.5;cursor:not-allowed}
+.buy:focus-visible,input:focus-visible,.link:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+.empty{color:var(--muted);padding:24px;text-align:center;border:1px dashed var(--line);border-radius:14px}
+dialog{border:1px solid var(--line);border-radius:18px;background:var(--surface);color:var(--ink);width:min(92vw,400px);padding:22px}
+dialog::backdrop{background:rgba(5,15,25,.55)}
+dialog h2{margin:0 0 2px;font-size:1.2rem;word-break:break-word}
+.total{color:var(--muted);margin:0 0 14px}
+label{display:block;font-size:.85rem;font-weight:600;margin-top:10px}
+input{width:100%;font:inherit;padding:10px;border-radius:10px;border:1px solid var(--line);background:var(--bg);color:var(--ink);margin-top:4px}
+.err{color:var(--err);font-size:.9rem;min-height:1.3em;margin:10px 0 0}
+.link{background:none;border:0;color:var(--muted);text-decoration:underline;padding:8px;width:100%;margin-top:4px}
+</style>
+</head>
+<body>
+<main>
+  <h1>Tindahan</h1>
+  <p class="sub">Piliin ang bibilhin at bayaran gamit ang GCash, Maya, QR Ph, o card.</p>
+  <div id="list" class="grid" aria-live="polite"></div>
+  <p id="state" class="empty" hidden></p>
+</main>
+
+<dialog id="dlg">
+  <form id="form" novalidate>
+    <h2 id="pname"></h2>
+    <p class="total" id="ptotal"></p>
+    <div id="g_name"><label for="bname">Pangalan</label><input id="bname" autocomplete="name" maxlength="60"></div>
+    <div id="g_id"><label for="bid" id="idlabel">ID</label><input id="bid" autocomplete="off" maxlength="60"></div>
+    <div id="g_email"><label for="email">Email</label><input id="email" type="email" autocomplete="email"></div>
+    <p class="err" id="err" role="alert"></p>
+    <button class="buy" id="submit" type="submit">Magpatuloy sa bayad</button>
+    <button class="link" id="cancel" type="button">Kanselahin</button>
+  </form>
+</dialog>
+
+<script>
+const peso = c => "₱" + (c / 100).toLocaleString("en-PH", {minimumFractionDigits: 2});
+const $ = id => document.getElementById(id);
+let current = null;
+
+function el(tag, cls, text) {
+  const n = document.createElement(tag);
+  if (cls) n.className = cls;
+  if (text !== undefined) n.textContent = text;
+  return n;
+}
+
+async function load() {
+  const list = $("list"), state = $("state");
+  try {
+    const res = await fetch("/api/products");
+    if (!res.ok) throw new Error();
+    const items = await res.json();
+    list.replaceChildren();
+    state.hidden = items.length > 0;
+    if (!items.length) state.textContent = "Wala pang produkto. Balik ka mamaya.";
+    for (const p of items) {
+      const out = p.stock <= 0;
+      const card = el("div", "card" + (out ? " out" : ""));
+      if (p.image_url && p.image_url.startsWith("https://")) {
+        const img = el("img"); img.src = p.image_url; img.alt = p.name; img.loading = "lazy";
+        card.append(img);
+      } else {
+        card.append(el("div", "ph", "🛍️"));
+      }
+      if (out) card.append(el("div", "badge", "SOLD OUT"));
+      const body = el("div", "body");
+      body.append(
+        el("b", "", p.name),
+        el("span", "d", p.description || ""),
+        el("div", "price", peso(p.price_centavos)),
+        el("div", "left", out ? "Sold out" : p.stock + " available")
+      );
+      const btn = el("button", "buy", out ? "Sold out" : "Bilhin");
+      btn.disabled = out;
+      if (!out) btn.addEventListener("click", () => openForm(p));
+      body.append(btn);
+      card.append(body);
+      list.append(card);
+    }
+  } catch {
+    state.hidden = false;
+    state.textContent = "Hindi ma-load ang mga produkto. I-refresh ang page.";
+  }
+}
+
+function openForm(p) {
+  current = p;
+  $("pname").textContent = p.name;
+  $("ptotal").textContent = "Total: " + peso(p.price_centavos);
+  $("idlabel").textContent = p.id_label || "ID";
+  $("err").textContent = "";
+  $("submit").disabled = false;
+  $("g_name").hidden = !p.require_name;
+  $("g_id").hidden = !p.require_id;
+  $("g_email").hidden = !p.require_email;
+  $("dlg").showModal();
+}
+
+$("cancel").onclick = () => $("dlg").close();
+
+$("form").addEventListener("submit", async ev => {
+  ev.preventDefault();
+  const name = $("bname").value.trim(), bid = $("bid").value.trim(), email = $("email").value.trim();
+  const err = $("err");
+  if (current.require_name && !name) { err.textContent = "Ilagay ang pangalan."; return; }
+  if (current.require_id && !bid) { err.textContent = "Ilagay ang " + (current.id_label || "ID") + "."; return; }
+  if (current.require_email && !/^[^@\s]+@[^@\s]+\.[^@\s]{2,}$/.test(email)) { err.textContent = "Mali ang email."; return; }
+  err.textContent = "";
+  $("submit").disabled = true;
+  try {
+    const res = await fetch("/api/checkout", {
+      method: "POST",
+      headers: {"Content-Type": "application/json"},
+      body: JSON.stringify({
+        product_id: current.id,
+        buyer_name: current.require_name ? name : "",
+        buyer_id: current.require_id ? bid : "",
+        email: current.require_email ? email : ""
+      })
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      err.textContent = typeof data.detail === "string" ? data.detail : "May problema. Subukan ulit.";
+      $("submit").disabled = false;
+      if (res.status === 409 || res.status === 404) { $("dlg").close(); load(); }
+      return;
+    }
+    location.href = data.checkout_url;
+  } catch {
+    err.textContent = "Walang koneksyon. Subukan ulit.";
+    $("submit").disabled = false;
+  }
+});
+
+load();
+</script>
+</body>
+</html>
