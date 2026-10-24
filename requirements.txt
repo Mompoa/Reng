@@ -1,0 +1,6 @@
+fastapi
+uvicorn
+requests
+supabase
+python-multipart
+google-auth
